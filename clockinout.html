@@ -3,13 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Clock In / Clock Out</title>
+  <title>Clock In/Out</title>
   <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js"></script>
 </head>
 <body>
-  <h1 id="statusMessage">Loading...</h1>
-
+  <h1>Clock In / Clock Out</h1>
+  
+  <p id="status"></p>
+  
   <script>
     // Your Firebase config here
     const firebaseConfig = {
@@ -22,47 +24,56 @@
     };
 
     // Initialize Firebase
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
+    const app = firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore(app);
 
-    // Get workerID from URL
+    // Get worker ID from URL
     const urlParams = new URLSearchParams(window.location.search);
     const workerID = urlParams.get('workerID');
-
+    
+    // Check if workerID exists
     if (workerID) {
-      // Function to log attendance to Firestore
-      function logAttendance(clockStatus) {
-        const currentTime = new Date().toISOString(); // ISO 8601 format time
-
-        db.collection("attendance").doc(workerID).set({
-          workerID: workerID,
-          status: clockStatus,
-          time: currentTime
-        }, { merge: true })
-        .then(() => {
-          document.getElementById('statusMessage').textContent = `${clockStatus} Successful`;
-        })
-        .catch((error) => {
-          console.error("Error logging attendance:", error);
-          document.getElementById('statusMessage').textContent = "Error logging attendance.";
-        });
-      }
-
-      // Check if worker is already clocked in or out
+      // Fetch the worker's attendance data from Firestore
       db.collection("attendance").doc(workerID).get().then(doc => {
-        if (doc.exists && doc.data().status === "Clocked In") {
-          // If worker is clocked in, allow them to clock out
-          logAttendance("Clocked Out");
+        if (doc.exists) {
+          const data = doc.data();
+          
+          // If the worker is clocked in, clock them out
+          if (data.status === 'clockedIn') {
+            const clockOutTime = new Date();
+            db.collection("attendance").doc(workerID).update({
+              status: 'clockedOut',
+              clockOutTime: clockOutTime
+            }).then(() => {
+              document.getElementById('status').innerText = `Clock Out Successful! Time: ${clockOutTime.toLocaleString()}`;
+            });
+          } else {
+            // Otherwise, clock them in
+            const clockInTime = new Date();
+            db.collection("attendance").doc(workerID).set({
+              status: 'clockedIn',
+              clockInTime: clockInTime,
+              workerID: workerID
+            }).then(() => {
+              document.getElementById('status').innerText = `Clock In Successful! Time: ${clockInTime.toLocaleString()}`;
+            });
+          }
         } else {
-          // If worker is not clocked in, clock them in
-          logAttendance("Clocked In");
+          // If no attendance record exists for the worker, create a new record
+          const clockInTime = new Date();
+          db.collection("attendance").doc(workerID).set({
+            status: 'clockedIn',
+            clockInTime: clockInTime,
+            workerID: workerID
+          }).then(() => {
+            document.getElementById('status').innerText = `Clock In Successful! Time: ${clockInTime.toLocaleString()}`;
+          });
         }
       }).catch(error => {
-        console.error("Error fetching worker data:", error);
-        document.getElementById('statusMessage').textContent = "Error fetching worker data.";
+        console.error("Error updating document: ", error);
       });
     } else {
-      document.getElementById('statusMessage').textContent = "No workerID found in the URL.";
+      document.getElementById('status').innerText = "Worker ID not found!";
     }
   </script>
 </body>
