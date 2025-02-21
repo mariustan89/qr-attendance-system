@@ -3,90 +3,62 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Attendance System - Supervisor View</title>
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js"></script>
+  <title>Attendance</title>
 </head>
 <body>
-  <h1>Supervisor Attendance View</h1>
-  
-  <!-- Table for showing attendance data -->
-  <table id="attendanceTable" border="1">
+  <h1>Attendance Data</h1>
+  <table>
     <thead>
       <tr>
         <th>Worker ID</th>
-        <th>Worker Name</th>
-        <th>Status</th>
-        <th>Clock In Time</th>
-        <th>Clock Out Time</th>
+        <th>Clock In</th>
+        <th>Clock Out</th>
         <th>Hours Worked</th>
-        <th>Offsite?</th>
       </tr>
     </thead>
-    <tbody>
-      <!-- Data will be populated here dynamically -->
+    <tbody id="attendanceTable">
+      <!-- Data will be populated here -->
     </tbody>
   </table>
 
+  <script src="https://www.gstatic.com/firebasejs/9.4.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.4.0/firebase-firestore.js"></script>
   <script>
-    // Your Firebase config here
     const firebaseConfig = {
-      apiKey: "your-api-key",
-      authDomain: "your-auth-domain",
-      projectId: "your-project-id",
-      storageBucket: "your-storage-bucket",
-      messagingSenderId: "your-sender-id",
-      appId: "your-app-id"
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_AUTH_DOMAIN",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_STORAGE_BUCKET",
+      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+      appId: "YOUR_APP_ID",
     };
 
     // Initialize Firebase
-    const app = firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore(app);
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    const attendanceTable = document.getElementById('attendanceTable');
 
     // Fetch attendance data from Firestore
-    function fetchAttendanceData() {
-      db.collection("attendance").get()
-        .then(snapshot => {
-          const tableBody = document.querySelector('#attendanceTable tbody');
-          snapshot.forEach(doc => {
-            const data = doc.data();
-            const clockInTime = new Date(data.time).toLocaleString();
-            const clockOutTime = data.clockOutTime ? new Date(data.clockOutTime).toLocaleString() : "Not clocked out";
-            const hoursWorked = calculateHoursWorked(data.time, data.clockOutTime);
-            const offsite = data.offsite ? "Yes" : "No";
-            const row = `
-              <tr>
-                <td>${data.workerID}</td>
-                <td>${data.workerName}</td>
-                <td>${data.status}</td>
-                <td>${clockInTime}</td>
-                <td>${clockOutTime}</td>
-                <td>${hoursWorked}</td>
-                <td>${offsite}</td>
-              </tr>
-            `;
-            tableBody.innerHTML += row;
-          });
-        })
-        .catch(error => {
-          console.error("Error fetching attendance data: ", error);
-        });
-    }
+    db.collection('attendance').get().then(snapshot => {
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        const clockIn = data.ClockIn ? new Date(data.ClockIn.seconds * 1000) : 'Not Clocked In';
+        const clockOut = data.ClockOut ? new Date(data.ClockOut.seconds * 1000) : 'Not Clocked Out';
+        const hoursWorked = data.ClockIn && data.ClockOut
+          ? (new Date(data.ClockOut.seconds * 1000) - new Date(data.ClockIn.seconds * 1000)) / 3600000
+          : 0;
 
-    // Function to calculate hours worked
-    function calculateHoursWorked(clockInTime, clockOutTime) {
-      if (!clockOutTime) {
-        return "Not clocked out";
-      }
-
-      const start = new Date(clockInTime);
-      const end = new Date(clockOutTime);
-      const hours = (end - start) / (1000 * 60 * 60); // hours worked
-      return hours.toFixed(2); // Return hours worked rounded to 2 decimal places
-    }
-
-    // Call the function to fetch and display data
-    fetchAttendanceData();
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${doc.id}</td>
+          <td>${clockIn}</td>
+          <td>${clockOut}</td>
+          <td>${hoursWorked.toFixed(2)} hrs</td>
+        `;
+        attendanceTable.appendChild(row);
+      });
+    });
   </script>
 </body>
 </html>
