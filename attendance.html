@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Attendance System - Supervisor View</title>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js"></script>
+</head>
+<body>
+  <h1>Supervisor Attendance View</h1>
+  
+  <!-- Table for showing attendance data -->
+  <table id="attendanceTable" border="1">
+    <thead>
+      <tr>
+        <th>Worker ID</th>
+        <th>Worker Name</th>
+        <th>Status</th>
+        <th>Clock In Time</th>
+        <th>Clock Out Time</th>
+        <th>Hours Worked</th>
+        <th>Offsite?</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Data will be populated here dynamically -->
+    </tbody>
+  </table>
+
+  <script>
+    // Your Firebase config here
+    const firebaseConfig = {
+      apiKey: "your-api-key",
+      authDomain: "your-auth-domain",
+      projectId: "your-project-id",
+      storageBucket: "your-storage-bucket",
+      messagingSenderId: "your-sender-id",
+      appId: "your-app-id"
+    };
+
+    // Initialize Firebase
+    const app = firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore(app);
+
+    // Fetch attendance data from Firestore
+    function fetchAttendanceData() {
+      db.collection("attendance").get()
+        .then(snapshot => {
+          const tableBody = document.querySelector('#attendanceTable tbody');
+          snapshot.forEach(doc => {
+            const data = doc.data();
+            const clockInTime = new Date(data.time).toLocaleString();
+            const clockOutTime = data.clockOutTime ? new Date(data.clockOutTime).toLocaleString() : "Not clocked out";
+            const hoursWorked = calculateHoursWorked(data.time, data.clockOutTime);
+            const offsite = data.offsite ? "Yes" : "No";
+            const row = `
+              <tr>
+                <td>${data.workerID}</td>
+                <td>${data.workerName}</td>
+                <td>${data.status}</td>
+                <td>${clockInTime}</td>
+                <td>${clockOutTime}</td>
+                <td>${hoursWorked}</td>
+                <td>${offsite}</td>
+              </tr>
+            `;
+            tableBody.innerHTML += row;
+          });
+        })
+        .catch(error => {
+          console.error("Error fetching attendance data: ", error);
+        });
+    }
+
+    // Function to calculate hours worked
+    function calculateHoursWorked(clockInTime, clockOutTime) {
+      if (!clockOutTime) {
+        return "Not clocked out";
+      }
+
+      const start = new Date(clockInTime);
+      const end = new Date(clockOutTime);
+      const hours = (end - start) / (1000 * 60 * 60); // hours worked
+      return hours.toFixed(2); // Return hours worked rounded to 2 decimal places
+    }
+
+    // Call the function to fetch and display data
+    fetchAttendanceData();
+  </script>
+</body>
+</html>
