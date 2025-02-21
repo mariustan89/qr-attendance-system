@@ -3,77 +3,98 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Clock In/Out</title>
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js"></script>
+  <title>Attendance System</title>
 </head>
 <body>
-  <h1>Clock In / Clock Out</h1>
-  
+  <h1>Welcome to the Attendance System</h1>
+
   <p id="status"></p>
-  
+  <p id="clockTime"></p>
+
+  <button id="clockIn" style="display: none;">Clock In</button>
+  <button id="clockOut" style="display: none;">Clock Out</button>
+
+  <script src="https://www.gstatic.com/firebasejs/9.4.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.4.0/firebase-firestore.js"></script>
   <script>
-    // Your Firebase config here
+    // Firebase config (get this from your Firebase console)
     const firebaseConfig = {
-      apiKey: "your-api-key",
-      authDomain: "your-auth-domain",
-      projectId: "your-project-id",
-      storageBucket: "your-storage-bucket",
-      messagingSenderId: "your-sender-id",
-      appId: "your-app-id"
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_AUTH_DOMAIN",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_STORAGE_BUCKET",
+      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+      appId: "YOUR_APP_ID",
     };
 
     // Initialize Firebase
-    const app = firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore(app);
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
 
-    // Get worker ID from URL
+    // Get worker ID from the URL
     const urlParams = new URLSearchParams(window.location.search);
     const workerID = urlParams.get('workerID');
-    
-    // Check if workerID exists
+    const statusElement = document.getElementById('status');
+    const clockTimeElement = document.getElementById('clockTime');
+    const clockInButton = document.getElementById('clockIn');
+    const clockOutButton = document.getElementById('clockOut');
+
     if (workerID) {
-      // Fetch the worker's attendance data from Firestore
-      db.collection("attendance").doc(workerID).get().then(doc => {
+      console.log('Worker ID:', workerID);
+
+      const workerRef = db.collection('attendance').doc(workerID);
+
+      // Check if worker is already clocked in or out
+      workerRef.get().then((doc) => {
         if (doc.exists) {
           const data = doc.data();
-          
-          // If the worker is clocked in, clock them out
-          if (data.status === 'clockedIn') {
-            const clockOutTime = new Date();
-            db.collection("attendance").doc(workerID).update({
-              status: 'clockedOut',
-              clockOutTime: clockOutTime
-            }).then(() => {
-              document.getElementById('status').innerText = `Clock Out Successful! Time: ${clockOutTime.toLocaleString()}`;
-            });
-          } else {
-            // Otherwise, clock them in
-            const clockInTime = new Date();
-            db.collection("attendance").doc(workerID).set({
-              status: 'clockedIn',
-              clockInTime: clockInTime,
-              workerID: workerID
-            }).then(() => {
-              document.getElementById('status').innerText = `Clock In Successful! Time: ${clockInTime.toLocaleString()}`;
-            });
+          const clockInTime = data.ClockIn ? new Date(data.ClockIn.seconds * 1000) : null;
+          const clockOutTime = data.ClockOut ? new Date(data.ClockOut.seconds * 1000) : null;
+
+          // If worker is clocked in, show Clock Out button
+          if (clockInTime && !clockOutTime) {
+            statusElement.innerText = 'You are currently Clocked In';
+            clockTimeElement.innerText = 'Clock In Time: ' + clockInTime.toLocaleString();
+            clockOutButton.style.display = 'inline';
+          }
+          // If worker is clocked out, show Clock In button
+          else if (!clockInTime && clockOutTime) {
+            statusElement.innerText = 'You are currently Clocked Out';
+            clockTimeElement.innerText = 'Clock Out Time: ' + clockOutTime.toLocaleString();
+            clockInButton.style.display = 'inline';
           }
         } else {
-          // If no attendance record exists for the worker, create a new record
-          const clockInTime = new Date();
-          db.collection("attendance").doc(workerID).set({
-            status: 'clockedIn',
-            clockInTime: clockInTime,
-            workerID: workerID
-          }).then(() => {
-            document.getElementById('status').innerText = `Clock In Successful! Time: ${clockInTime.toLocaleString()}`;
-          });
+          // If no record, start fresh
+          clockInButton.style.display = 'inline';
         }
-      }).catch(error => {
-        console.error("Error updating document: ", error);
       });
-    } else {
-      document.getElementById('status').innerText = "Worker ID not found!";
+
+      // Handle Clock In button click
+      clockInButton.addEventListener('click', () => {
+        const clockInTime = new Date();
+        workerRef.update({
+          ClockIn: clockInTime,
+          Status: 'Clocked In',
+        }).then(() => {
+          statusElement.innerText = 'Clock In Successful';
+          clockTimeElement.innerText = 'Clock In Time: ' + clockInTime.toLocaleString();
+          clockInButton.style.display = 'none'; // Hide the clock in button after clocking in
+          clockOutButton.style.display = 'inline'; // Show the clock out button
+        });
+      });
+
+      // Handle Clock Out button click
+      clockOutButton.addEventListener('click', () => {
+        const clockOutTime = new Date();
+        workerRef.update({
+          ClockOut: clockOutTime,
+          Status: 'Clocked Out',
+        }).then(() => {
+          statusElement.innerText = 'Clock Out Successful';
+          clockTimeElement.innerText = 'Clock Out Time: ' + clockOutTime.toLocaleString();
+          clockOutButton.style.display = 'none'; // Hide the clock out button after clocking out
+        });
+      });
     }
   </script>
 </body>
